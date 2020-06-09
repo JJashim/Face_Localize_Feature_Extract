@@ -1,0 +1,6 @@
+tensorflow==1.14
+opencv-python
+pandas
+glob3
+numpy
+
