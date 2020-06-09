@@ -27,3 +27,6 @@ Print Input folder and Model paths at the start.
 Print Output Folder and CSV path at End.
 
 This work is influenced by [Facenet](https://github.com/davidsandberg/facenet)
+
+Face Feature Extraction Model can be downloaded from [here](https://drive.google.com/open?id=1EXPBSXwTaqrSC0OhUdXNmKSh9qJUQ55-). The downloaded model to be unzipped under model directory.
+
