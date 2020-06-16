@@ -141,6 +141,7 @@ def create_network_face_detection(gpu_memory_fraction):
 if __name__ == '__main__':
 
     FACE_FEATURE_REQUIRED = True #should be set by the user -- True/False. True/1 means Face Localization + Feature Extraction and False/0 means only Face Localization is performed
+    batch_size = 32 #config --  user param
     margin = 44 #add to config -- developer
     image_size = 160 #add to config -- developer --image size used to resize faces which will be passed to Facenet for face feature extraction
     BBox_Thresh = 0.95 #add to config -- developer
@@ -159,20 +160,29 @@ if __name__ == '__main__':
     # To perform face localize
     pnet, rnet, onet  = create_network_face_detection(gpu_memory_fraction=1.0)
     train_images,image_paths = load_image_align_data(img_dest_path,image_paths,image_size, margin, pnet, rnet, onet,discarded_folder_path = discard_folder_path, bbox_thresh = BBox_Thresh)
-
+    
     # To perform Facial feature extraction
     if FACE_FEATURE_REQUIRED:
+        temp_tr_images,temp_image_paths = [],[] #temp vars required for batch process
+        list_image_paths,list_train_embs = [],[] #to collate into a single list post batch process
         with tf.Graph().as_default():
             with tf.Session() as sess:
                 facenet.load_model(model_path)
                 images_placeholder = sess.graph.get_tensor_by_name("input:0")
                 embeddings = sess.graph.get_tensor_by_name("embeddings:0")
                 phase_train_placeholder = sess.graph.get_tensor_by_name("phase_train:0")
-                feed_dict = {images_placeholder: train_images,
-                             phase_train_placeholder: False} #currently passing entire images as input to the model..pass it in batches and keep the batch_size at config param -- default it to 32
-                train_embs = sess.run(embeddings, feed_dict=feed_dict)
-                train_imgs_dict = dict(zip(image_paths,train_embs))
-                df_train = pd.DataFrame.from_dict(train_imgs_dict,orient='index')
+                bt_sz = batch_size
+                for i in range(0,len(train_images),bt_sz):
+                    temp_tr_images = train_images[i:i+bt_sz]
+                    temp_image_paths = image_paths[i:i+bt_sz]
+                    feed_dict = {images_placeholder: temp_tr_images,
+                                 phase_train_placeholder: False} #currently passing entire images as input to the model..pass it in batches and keep the batch_size at config param -- default it to 32
+                    print('len(temp_tr_images):',len(temp_tr_images))
+                    train_embs = sess.run(embeddings, feed_dict=feed_dict)
+                    list_train_embs.extend(train_embs)
+                    list_image_paths.extend(temp_image_paths)
+                embs_dict = dict(zip(list_image_paths,list_train_embs))
+                df_train = pd.DataFrame.from_dict(embs_dict,orient='index')
                 print('Face Embedded: No. of images:', len(image_paths),'within',len(train_images),'Localized Images')
                 df_train.to_csv(csv_dest_file_path) #output CSV files -- {img_names,features}
 
